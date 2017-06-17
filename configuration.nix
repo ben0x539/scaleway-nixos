@@ -10,6 +10,13 @@
     openssh.enable = true;
   };
 
+  system.build.installBootLoader = pkgs.writeScript "make-kernel-initrd-symlinks.sh" ''
+    mkdir -p /boot
+    out="$1"
+    ln -sfT ..$(readlink $out/kernel) /boot/kernel
+    ln -sfT ..$(readlink $out/initrd) /boot/initrd
+  '';
+
   fileSystems = [
     {
       mountPoint = "/";
