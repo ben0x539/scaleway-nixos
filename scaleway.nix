@@ -16,5 +16,6 @@
     out="$1"
     ln -sfT ..$(readlink $out/kernel) /boot/kernel
     ln -sfT ..$(readlink $out/initrd) /boot/initrd
+    ln -sfT ..$out/init /boot/init
   '';
 }
