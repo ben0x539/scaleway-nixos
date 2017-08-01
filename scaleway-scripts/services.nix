@@ -51,9 +51,43 @@ in
       extraUtilsCommands = ''
         copy_bin_and_libs ${pkgs.scaleway-scripts}/bin/scw-metadata
         copy_bin_and_libs ${pkgs.nbd}/bin/nbd-client
+        copy_bin_and_libs ${pkgs.mkinitcpio-nfs-utils}/bin/ipconfig
       '';
-      preDeviceCommands = ''
+      kernelModules = [ "nbd" "af_packet" "virtio_blk" "virtio_pci" "virtio_net" "virtio_scsi" "8021q" "fixed_phy" "mvmdio" "igb" "igbvf" "ext4" ];
+      preDeviceCommands = let
+
+        udhcpcScript = pkgs.writeScript "udhcp-script"
+          ''
+            #! /bin/sh
+            if [ "$1" = bound ]; then
+              ip address add "$ip/$mask" dev "$interface"
+              if [ -n "$router" ]; then
+                ip route add default via "$router" dev "$interface"
+              fi
+              if [ -n "$dns" ]; then
+                rm -f /etc/resolv.conf
+                for i in $dns; do
+                  echo "nameserver $dns" >> /etc/resolv.conf
+                done
+              fi
+            fi
+          '';
+
+      in ''
+        # nixos/modules/system/boot/initrd-networking.nix, but earlier
+        #
+        # Bring up all interfaces.
+        for iface in $(cd /sys/class/net && ls); do
+          echo "bringing up network interface $iface..."
+          ip link set "$iface" up
+        done
+
+        # Acquire a DHCP lease.
+        echo "acquiring IP address via DHCP..."
+        udhcpc --quit --now --script ${udhcpcScript} && hasNetwork=1
+
         # logic taken from https://github.com/scaleway/initrd/blob/94f40b68de094c0f335a09f2ce5b80f2b53aceda/Linux/tree-common/functions#L241
+        #
         wget --proxy=off --quiet --output-document=- \
             http://169.254.42.42/conf \
           | grep "^VOLUMES_.*_EXPORT_URI=nbd://" \
