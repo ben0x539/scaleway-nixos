@@ -12,7 +12,7 @@ in
     services.load-ssh-keys = {
       enable = mkOption {
         type = types.bool;
-        default = true;
+        default = false;
         description = ''
           Whether to load root's .ssh/authorized_keys from Scaleway at startup.
         '';
@@ -21,7 +21,7 @@ in
     boot.initrd.get-nbd-volumes = {
       enable = mkOption {
         type = types.bool;
-        default = true;
+        default = false;
         description = ''
           Whether to attach and mount nbd volumes from Scaleway metadata.
         '';
@@ -34,7 +34,7 @@ in
       scaleway-scripts = self.callPackage ./. {};
     }) ];
 
-    environment.systemPackages = with pkgs; [
+    environment.systemPackages = with pkgs; mkIf (sshCfg.enable || nbdCfg.enable) [
       scaleway-scripts
     ];
 
@@ -47,6 +47,9 @@ in
         ExecStart="${pkgs.scaleway-scripts}/bin/scw-fetch-ssh-keys";
       };
     };
+
+    # TODO: bare-metal needs the ndb stuff + networking in initrd,
+    # vms probably just need virtio_blk and ext4 to mount /dev/vda
     boot.initrd = mkIf nbdCfg.enable {
       extraUtilsCommands = ''
         copy_bin_and_libs ${pkgs.scaleway-scripts}/bin/scw-metadata
@@ -74,6 +77,7 @@ in
           '';
 
       in ''
+        # TODO: this doesn't work, we don't get network devices. :'(
         # nixos/modules/system/boot/initrd-networking.nix, but earlier
         #
         # Bring up all interfaces.
