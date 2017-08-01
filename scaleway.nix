@@ -8,7 +8,7 @@
 
   services = {
     openssh.enable = true;
-    load-ssh-keys.enable = true;
+    fetch-ssh-keys.periodically = "1min";
   };
 
   system.build.installBootLoader = pkgs.writeScript "make-kernel-initrd-symlinks.sh" ''

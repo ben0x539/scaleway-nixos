@@ -3,19 +3,26 @@
 with lib;
 
 let
-  sshCfg = config.services.load-ssh-keys;
+  sshCfg = config.services.fetch-ssh-keys;
   nbdCfg = config.boot.initrd.get-nbd-volumes;
 in
 
 {
   options = {
-    services.load-ssh-keys = {
+    services.fetch-ssh-keys = {
       enable = mkOption {
         type = types.bool;
         default = false;
         description = ''
-          Whether to load root's .ssh/authorized_keys from Scaleway at startup.
+          Whether to fetch root's .ssh/authorized_keys from Scaleway at startup.
         '';
+      };
+      periodically = mkOption {
+        type = types.nullOr types.string;
+        description = ''
+          Update /root/.ssh/authorized_keys periodically.
+        '';
+        default = null;
       };
     };
     boot.initrd.get-nbd-volumes = {
@@ -38,8 +45,8 @@ in
       scaleway-scripts
     ];
 
-    systemd.services.load-ssh-keys = mkIf sshCfg.enable {
-      description = "Load root's .ssh/authorized_keys from Scaleway servers";
+    systemd.services.fetch-ssh-keys = mkIf sshCfg.enable {
+      description = "Fetch root's .ssh/authorized_keys from Scaleway servers";
       requires = [ "network-online.target" ];
       after = [ "network-online.target" ];
       wantedBy = [ "sshd.service" ];
@@ -47,6 +54,16 @@ in
         Type="oneshot";
         ExecStart="${pkgs.scaleway-scripts}/bin/scw-fetch-ssh-keys";
       };
+    };
+    services.fetch-ssh-keys.enable = mkIf (sshCfg.periodically != null) true;
+    systemd.timers.fetch-ssh-keys = mkIf (sshCfg.periodically != null) {
+      description = "Update /root/.ssh/authorized_keys periodically";
+      timerConfig = {
+        OnUnitActiveSec="${sshCfg.periodically}";
+        RandomizedDelaySec="15s";
+        AccuracySec="5s";
+      };
+      wantedBy = [ "fetch-ssh-keys.service" ];
     };
 
     # TODO: bare-metal needs the ndb stuff + networking in initrd,
