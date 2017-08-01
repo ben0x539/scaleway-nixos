@@ -40,8 +40,9 @@ in
 
     systemd.services.load-ssh-keys = mkIf sshCfg.enable {
       description = "Load root's .ssh/authorized_keys from Scaleway servers";
-      before = [ "sshd.service" ];
-      wantedBy = [ "multi-user.target" ];
+      requires = [ "network-online.target" ];
+      after = [ "network-online.target" ];
+      wantedBy = [ "sshd.service" ];
       serviceConfig = {
         Type="oneshot";
         ExecStart="${pkgs.scaleway-scripts}/bin/scw-fetch-ssh-keys";
