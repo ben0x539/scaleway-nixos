@@ -23,4 +23,6 @@
   # Build faster!
   nix.buildCores = 8;
   nix.maxJobs = 8;
+
+  nixpkgs.config.allowUnfree = true;
 }
